@@ -116,12 +116,87 @@ html,
   gap: 10px;
 }
 
-@media (max-width: 600px) {
+.close-btn-mobile {
+  display: none;
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 24px;
+  background: transparent;
+  border: none;
+  color: white;
+  z-index: 1000;
+  cursor: pointer;
+}
+
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  opacity: 1;
+  transition: opacity 1s ease-out;
+}
+
+.intro-overlay.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.container {
+  animation: fadeIn 1s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.intro-background {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.4);
+  z-index: -1;
+  transition: opacity 1s ease-in-out;
+}
+
+.intro-button {
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  background: transparent;
+  color: white;
+  border: 2px solid white;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  z-index: 1;
+}
+.intro-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 426px) {
   .info-panel {
     position: fixed;
     width: 100%;
     border-top-left-radius: 25px;
     border-top-right-radius: 25px;
     box-shadow: 0 -5px 15px rgba(0, 200, 200, 0.4);
+  }
+
+  .close-btn-mobile {
+    display: block;
   }
 }

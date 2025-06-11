@@ -43,8 +43,46 @@ export default function App() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [transitioning, setTransitioning] = useState(true);
 
+  const [showIntro, setShowIntro] = useState(true);
+  const [introVisible, setIntroVisible] = useState(true);
+  const [introImages, setIntroImages] = useState([]);
+  const [introImageIndex, setIntroImageIndex] = useState(0);
+
   const WEATHER_API_KEY = "e6d02aec03da2632c5505afa1f2670ec";
   const UNSPLASH_ACCESS_KEY = "AQPoHBzv-aqVMwY6iB7oHXSvRWcGRTA16WGinMFg84s";
+
+  useEffect(() => {
+    const fetchIntroImages = async () => {
+      try {
+        const keywords = ["travel", "nature", "city", "adventure", "world"];
+        const randomKeyword =
+          keywords[Math.floor(Math.random() * keywords.length)];
+
+        const res = await axios.get(
+          `https://api.unsplash.com/search/photos?query=${randomKeyword}&per_page=10&client_id=${UNSPLASH_ACCESS_KEY}`
+        );
+
+        const urls = res.data.results.map((img) => img.urls.regular);
+        setIntroImages(urls);
+      } catch (err) {
+        console.error("인트로 이미지 로딩 실패:", err);
+      }
+    };
+
+    if (showIntro) {
+      fetchIntroImages();
+    }
+  }, [showIntro]);
+
+  useEffect(() => {
+    if (!showIntro || introImages.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setIntroImageIndex((prev) => (prev + 1) % introImages.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [showIntro, introImages]);
 
   useEffect(() => {
     if (!selectedLocation) {
@@ -105,7 +143,6 @@ export default function App() {
   const handleTransitionEnd = () => {
     if (!info) return;
 
-    // 루프 조건: 마지막 복제 이미지 → 첫 이미지로 순간 이동
     if (currentImageIndex === info.images.length) {
       setTransitioning(false);
       setCurrentImageIndex(0);
@@ -120,74 +157,110 @@ export default function App() {
     }
   };
 
+  const handleIntroEnd = () => {
+    const intro = document.querySelector(".intro-overlay");
+    intro.classList.add("fade-out");
+    setTimeout(() => {
+      setShowIntro(false);
+      setIntroVisible(false);
+    }, 1000);
+  };
+
   return (
-    <div className="container" onPointerDown={onBackgroundClick}>
-      <Canvas camera={{ position: [0, 0, 5] }}>
-        <ambientLight intensity={0.8} />
-        <Stars radius={100} depth={50} count={5000} factor={4} />
-        <OrbitControls enableZoom={true} enableRotate={true} />
-        <mesh>
-          <sphereGeometry args={[2, 64, 64]} />
-          <meshStandardMaterial
-            map={new THREE.TextureLoader().load("/earth_texture.jpg")}
+    <>
+      {introVisible && (
+        <div className="intro-overlay">
+          <img
+            src={introImages[introImageIndex]}
+            alt="Intro"
+            className="intro-background"
           />
-        </mesh>
-        {locations.map((loc, idx) => (
-          <Marker
-            key={idx}
-            location={loc}
-            onClick={setSelectedLocation}
-            onHover={setHoveredName}
-          />
-        ))}
-      </Canvas>
+          <img src="/로고.png" alt="Intro-title" className="intro-title" />
+          <button className="intro-button" onClick={handleIntroEnd}>
+            여행지 보기
+          </button>
+        </div>
+      )}
 
-      {hoveredName && <div className="hover-label">{hoveredName}</div>}
+      {!showIntro && (
+        <div className="container" onPointerDown={onBackgroundClick}>
+          <Canvas camera={{ position: [0, 0, 5] }}>
+            <ambientLight intensity={0.8} />
+            <Stars radius={100} depth={50} count={5000} factor={4} />
+            <OrbitControls enableZoom={true} enableRotate={true} />
+            <mesh>
+              <sphereGeometry args={[2, 64, 64]} />
+              <meshStandardMaterial
+                map={new THREE.TextureLoader().load("/earth_texture.jpg")}
+              />
+            </mesh>
+            {locations.map((loc, idx) => (
+              <Marker
+                key={idx}
+                location={loc}
+                onClick={setSelectedLocation}
+                onHover={setHoveredName}
+              />
+            ))}
+          </Canvas>
 
-      <div
-        className={`info-panel ${infoVisible ? "visible" : "hidden"}`}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        {selectedLocation && info ? (
-          <>
-            <h2>{selectedLocation.krName}</h2>
+          {hoveredName && <div className="hover-label">{hoveredName}</div>}
 
-            {info.images && (
-              <div className="slider-container">
-                <div
-                  className="slider"
-                  style={{
-                    transform: `translateX(-${(currentImageIndex + 1) * 100}%)`,
-                    transition: transitioning
-                      ? "transform 0.8s ease-in-out"
-                      : "none",
-                  }}
-                  onTransitionEnd={handleTransitionEnd}
-                >
-                  {/* 앞쪽 복제 (마지막 이미지) */}
-                  <img
-                    src={info.images[info.images.length - 1]}
-                    alt="clone-last"
-                  />
-                  {/* 실제 이미지들 */}
-                  {info.images.map((img, idx) => (
-                    <img key={idx} src={img} alt={`slide-${idx}`} />
-                  ))}
-                  {/* 뒤쪽 복제 (첫 이미지) */}
-                  <img src={info.images[0]} alt="clone-first" />
-                </div>
-              </div>
+          <div
+            className={`info-panel ${infoVisible ? "visible" : "hidden"}`}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <button
+              className="close-btn-mobile"
+              onClick={() => {
+                setInfoVisible(false);
+                setSelectedLocation(null);
+                setInfo(null);
+              }}
+            >
+              ×
+            </button>
+            {selectedLocation && info ? (
+              <>
+                <h2>{selectedLocation.krName}</h2>
+
+                {info.images && (
+                  <div className="slider-container">
+                    <div
+                      className="slider"
+                      style={{
+                        transform: `translateX(-${
+                          (currentImageIndex + 1) * 100
+                        }%)`,
+                        transition: transitioning
+                          ? "transform 0.8s ease-in-out"
+                          : "none",
+                      }}
+                      onTransitionEnd={handleTransitionEnd}
+                    >
+                      <img
+                        src={info.images[info.images.length - 1]}
+                        alt="clone-last"
+                      />
+                      {info.images.map((img, idx) => (
+                        <img key={idx} src={img} alt={`slide-${idx}`} />
+                      ))}
+                      <img src={info.images[0]} alt="clone-first" />
+                    </div>
+                  </div>
+                )}
+
+                <p>
+                  날씨: {info.weather} ({info.temp}°C)
+                </p>
+                <p>{info.summary}</p>
+              </>
+            ) : (
+              <p>여행지를 클릭해주세요.</p>
             )}
-
-            <p>
-              날씨: {info.weather} ({info.temp}°C)
-            </p>
-            <p>{info.summary}</p>
-          </>
-        ) : (
-          <p>여행지를 클릭해주세요.</p>
-        )}
-      </div>
-    </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
