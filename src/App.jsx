@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
 import * as THREE from "three";
@@ -25,7 +25,7 @@ function Marker({ location, onClick, onHover }) {
         e.stopPropagation();
         onClick(location);
       }}
-      onPointerOver={() => onHover(location.name)}
+      onPointerOver={() => onHover(location.krName)}
       onPointerOut={() => onHover(null)}
       scale={1.2}
     >
@@ -40,9 +40,10 @@ export default function App() {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [info, setInfo] = useState(null);
   const [infoVisible, setInfoVisible] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [transitioning, setTransitioning] = useState(true);
 
   const WEATHER_API_KEY = "e6d02aec03da2632c5505afa1f2670ec";
-  const EXCHANGE_API_KEY = "c84e654df5ff565ce29a6adf";
   const UNSPLASH_ACCESS_KEY = "AQPoHBzv-aqVMwY6iB7oHXSvRWcGRTA16WGinMFg84s";
 
   useEffect(() => {
@@ -53,34 +54,33 @@ export default function App() {
 
     const fetchData = async () => {
       try {
-        const [weatherRes, rateRes, imageRes] = await Promise.all([
+        const [weatherRes, imageRes, wikiRes] = await Promise.all([
           axios.get(
             `https://api.openweathermap.org/data/2.5/weather?q=${selectedLocation.name}&units=metric&appid=${WEATHER_API_KEY}&lang=kr`
           ),
           axios.get(
-            `https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/latest/KRW`
+            `https://api.unsplash.com/search/photos?query=${selectedLocation.name}&per_page=5&client_id=${UNSPLASH_ACCESS_KEY}`
           ),
           axios.get(
-            `https://api.unsplash.com/search/photos?query=${selectedLocation.name}&client_id=${UNSPLASH_ACCESS_KEY}`
+            `https://ko.wikipedia.org/api/rest_v1/page/summary/${selectedLocation.krName}`
           ),
         ]);
 
-        const currency = selectedLocation.currency;
-        const currencyRate = rateRes.data.conversion_rates[currency] || "N/A";
-
-        const imageUrl =
+        const imageUrls =
           imageRes.data.results.length > 0
-            ? imageRes.data.results[0].urls.regular
-            : `https://source.unsplash.com/400x300/?${selectedLocation.name}`;
+            ? imageRes.data.results.map((img) => img.urls.regular)
+            : [`https://source.unsplash.com/400x300/?${selectedLocation.name}`];
 
         setInfo({
           weather: weatherRes.data.weather[0].description,
           temp: weatherRes.data.main.temp,
-          currencyRate,
-          image: imageUrl,
+          images: imageUrls,
+          summary: wikiRes.data.extract,
         });
 
         setInfoVisible(true);
+        setCurrentImageIndex(0);
+        setTransitioning(true);
       } catch (error) {
         console.error("API Error:", error);
         setInfo(null);
@@ -90,6 +90,27 @@ export default function App() {
 
     fetchData();
   }, [selectedLocation]);
+
+  useEffect(() => {
+    if (!info || !info.images || info.images.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setTransitioning(true);
+      setCurrentImageIndex((prev) => prev + 1);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [info]);
+
+  const handleTransitionEnd = () => {
+    if (!info) return;
+
+    // 루프 조건: 마지막 복제 이미지 → 첫 이미지로 순간 이동
+    if (currentImageIndex === info.images.length) {
+      setTransitioning(false);
+      setCurrentImageIndex(0);
+    }
+  };
 
   const onBackgroundClick = () => {
     if (infoVisible) {
@@ -104,7 +125,7 @@ export default function App() {
       <Canvas camera={{ position: [0, 0, 5] }}>
         <ambientLight intensity={0.8} />
         <Stars radius={100} depth={50} count={5000} factor={4} />
-        <OrbitControls enableZoom={false} enableRotate={true} />
+        <OrbitControls enableZoom={true} enableRotate={true} />
         <mesh>
           <sphereGeometry args={[2, 64, 64]} />
           <meshStandardMaterial
@@ -122,17 +143,46 @@ export default function App() {
       </Canvas>
 
       {hoveredName && <div className="hover-label">{hoveredName}</div>}
-      <div className={`info-panel ${infoVisible ? "visible" : "hidden"}`}>
+
+      <div
+        className={`info-panel ${infoVisible ? "visible" : "hidden"}`}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
         {selectedLocation && info ? (
           <>
-            <h2>{selectedLocation.name}</h2>
-            <img src={info.image} alt={selectedLocation.name} />
+            <h2>{selectedLocation.krName}</h2>
+
+            {info.images && (
+              <div className="slider-container">
+                <div
+                  className="slider"
+                  style={{
+                    transform: `translateX(-${(currentImageIndex + 1) * 100}%)`,
+                    transition: transitioning
+                      ? "transform 0.8s ease-in-out"
+                      : "none",
+                  }}
+                  onTransitionEnd={handleTransitionEnd}
+                >
+                  {/* 앞쪽 복제 (마지막 이미지) */}
+                  <img
+                    src={info.images[info.images.length - 1]}
+                    alt="clone-last"
+                  />
+                  {/* 실제 이미지들 */}
+                  {info.images.map((img, idx) => (
+                    <img key={idx} src={img} alt={`slide-${idx}`} />
+                  ))}
+                  {/* 뒤쪽 복제 (첫 이미지) */}
+                  <img src={info.images[0]} alt="clone-first" />
+                </div>
+              </div>
+            )}
+
             <p>
               날씨: {info.weather} ({info.temp}°C)
             </p>
-            <p>
-              환율: 1 {selectedLocation.currency} ≈ {info.currencyRate} KRW
-            </p>
+            <p>{info.summary}</p>
           </>
         ) : (
           <p>여행지를 클릭해주세요.</p>
