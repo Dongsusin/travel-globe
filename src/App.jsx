@@ -187,7 +187,12 @@ export default function App() {
           <Canvas camera={{ position: [0, 0, 5] }}>
             <ambientLight intensity={0.8} />
             <Stars radius={100} depth={50} count={5000} factor={4} />
-            <OrbitControls enableZoom={true} enableRotate={true} />
+            <OrbitControls
+              enableZoom={true}
+              enableRotate={true}
+              minDistance={3}
+              maxDistance={10}
+            />
             <mesh>
               <sphereGeometry args={[2, 64, 64]} />
               <meshStandardMaterial
