@@ -6,6 +6,7 @@ import axios from "axios";
 import { locations } from "./locations";
 import "./App.css";
 
+// 위도/경도를 3D 구 좌표계로 변환하는 함수
 function convertLatLonToXYZ(lat, lon, radius) {
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lon + 180) * (Math.PI / 180);
@@ -16,13 +17,14 @@ function convertLatLonToXYZ(lat, lon, radius) {
   };
 }
 
+// 위치 마커 컴포넌트
 function Marker({ location, onClick, onHover }) {
   const pos = convertLatLonToXYZ(location.lat, location.lon, 2);
   return (
     <mesh
       position={[pos.x, pos.y, pos.z]}
       onClick={(e) => {
-        e.stopPropagation();
+        e.stopPropagation(); // 이벤트 전파 방지
         onClick(location);
       }}
       onPointerOver={() => onHover(location.krName)}
@@ -35,22 +37,24 @@ function Marker({ location, onClick, onHover }) {
   );
 }
 
+// 메인 App 컴포넌트
 export default function App() {
-  const [hoveredName, setHoveredName] = useState(null);
-  const [selectedLocation, setSelectedLocation] = useState(null);
-  const [info, setInfo] = useState(null);
-  const [infoVisible, setInfoVisible] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [transitioning, setTransitioning] = useState(true);
+  const [hoveredName, setHoveredName] = useState(null); // 마우스 오버한 지역 이름
+  const [selectedLocation, setSelectedLocation] = useState(null); // 선택한 지역 정보
+  const [info, setInfo] = useState(null); // API로 받은 상세 정보
+  const [infoVisible, setInfoVisible] = useState(false); // 정보 패널 표시 여부
+  const [currentImageIndex, setCurrentImageIndex] = useState(0); // 현재 슬라이드 이미지 인덱스
+  const [transitioning, setTransitioning] = useState(true); // 이미지 전환 중 여부
 
-  const [showIntro, setShowIntro] = useState(true);
-  const [introVisible, setIntroVisible] = useState(true);
-  const [introImages, setIntroImages] = useState([]);
-  const [introImageIndex, setIntroImageIndex] = useState(0);
+  const [showIntro, setShowIntro] = useState(true); // 인트로 표시 여부
+  const [introVisible, setIntroVisible] = useState(true); // 인트로 오버레이 표시 여부
+  const [introImages, setIntroImages] = useState([]); // 인트로에 사용할 이미지 리스트
+  const [introImageIndex, setIntroImageIndex] = useState(0); // 인트로 이미지 인덱스
 
   const WEATHER_API_KEY = "e6d02aec03da2632c5505afa1f2670ec";
   const UNSPLASH_ACCESS_KEY = "AQPoHBzv-aqVMwY6iB7oHXSvRWcGRTA16WGinMFg84s";
 
+  // 인트로 이미지 불러오기
   useEffect(() => {
     const fetchIntroImages = async () => {
       try {
@@ -74,6 +78,7 @@ export default function App() {
     }
   }, [showIntro]);
 
+  // 인트로 이미지 자동 전환
   useEffect(() => {
     if (!showIntro || introImages.length <= 1) return;
 
@@ -84,6 +89,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [showIntro, introImages]);
 
+  // 선택된 여행지의 날씨/이미지/위키 정보 불러오기
   useEffect(() => {
     if (!selectedLocation) {
       setInfoVisible(false);
@@ -129,6 +135,7 @@ export default function App() {
     fetchData();
   }, [selectedLocation]);
 
+  // 정보창 이미지 자동 슬라이드
   useEffect(() => {
     if (!info || !info.images || info.images.length <= 1) return;
 
@@ -140,6 +147,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [info]);
 
+  // 슬라이드 전환이 끝났을 때 처리
   const handleTransitionEnd = () => {
     if (!info) return;
 
@@ -149,6 +157,7 @@ export default function App() {
     }
   };
 
+  // 배경 클릭 시 정보창 닫기
   const onBackgroundClick = () => {
     if (infoVisible) {
       setInfoVisible(false);
@@ -157,6 +166,7 @@ export default function App() {
     }
   };
 
+  // 인트로 종료 처리
   const handleIntroEnd = () => {
     const intro = document.querySelector(".intro-overlay");
     intro.classList.add("fade-out");
@@ -168,6 +178,7 @@ export default function App() {
 
   return (
     <>
+      {/* 인트로 화면 */}
       {introVisible && (
         <div className="intro-overlay">
           <img
@@ -181,7 +192,6 @@ export default function App() {
           </button>
         </div>
       )}
-
       {!showIntro && (
         <div className="container" onPointerDown={onBackgroundClick}>
           <Canvas camera={{ position: [0, 0, 5] }}>
@@ -209,8 +219,10 @@ export default function App() {
             ))}
           </Canvas>
 
+          {/* 이름 표시 */}
           {hoveredName && <div className="hover-label">{hoveredName}</div>}
 
+          {/* 정보 패널 */}
           <div
             className={`info-panel ${infoVisible ? "visible" : "hidden"}`}
             onPointerDown={(e) => e.stopPropagation()}
@@ -234,7 +246,7 @@ export default function App() {
                     <div
                       className="slider"
                       style={{
-                        transform: `translateX(-${
+                        transform: `translateX(-$${
                           (currentImageIndex + 1) * 100
                         }%)`,
                         transition: transitioning
@@ -243,6 +255,7 @@ export default function App() {
                       }}
                       onTransitionEnd={handleTransitionEnd}
                     >
+                      {/* 무한 슬라이드 이미지 */}
                       <img
                         src={info.images[info.images.length - 1]}
                         alt="clone-last"
