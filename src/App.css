@@ -32,7 +32,7 @@ html,
 .hover-label {
   position: absolute;
   top: 20px;
-  left: 50%;
+  left: 45%;
   transform: translateX(-50%);
   background: rgba(12, 34, 56, 0.7);
   backdrop-filter: blur(10px);
